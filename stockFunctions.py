@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.stats import norm
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests
@@ -7,11 +6,8 @@ import pandas as pd
 from pandas_datareader import data as pdr
 import PySimpleGUI as sg
 from matplotlib import style
-import plotly.offline as pyo
-import matplotlib.pyplot as plt
 import yfinance as yf
 import pyautogui
-from multiprocessing import Process
 import opstrat as op
 import optionFunctions as oF
 
@@ -160,7 +156,6 @@ def updateExpDate(ticker, urlExpirationCode):
     return callTableEntries, putTableEntries
 
 
-# INCOMPLETE -- idea is to web scrape available option contracts from yahooFinance, maybe put them in a nice GUI
 def createOptionSheet(ticker):
     sg.theme('LightBrown1')  # Add a little color to your windows
     expirationDates, callList, putList = getOptions(ticker)
@@ -227,7 +222,6 @@ def createOptionSheet(ticker):
         [sg.Frame("", optionInfo)]
     ]
 
-    # col_widths = list(map(lambda x: len(x) + 1, callTableHeaders)))  #manually set column width
     current_price = getStockPrice(ticker)
     companyName = getCompanyName(ticker)
     historicVol = round(getHistoricVol(ticker, 365), 6)
