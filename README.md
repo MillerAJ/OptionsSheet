@@ -4,4 +4,4 @@ This application is built with pySimpleGUI. The idea is to provide an environmen
 with options contracts, pricing models and plot basic options positions (i.e. long/short positions, strangles, butterflies, etc.)
 
 Given a ticker, the program will webscrape available options contracts from yahooFinance. You'll be able to edit inputs like the risk free rate and the
-number of days to consider when calculating historic volatility. Other than that it's fairly simple, I hope you find it useful!
+number of days to consider when calculating historic volatility. Overall it's fairly simple and (I hope) easy to use, enjoy!
