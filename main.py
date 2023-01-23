@@ -1,10 +1,6 @@
 
 import PySimpleGUI as sg
 import stockFunctions as sF
-import optionFunctions as oF
-import opstrat as op
-import matplotlib.pyplot as plt
-from multiprocessing import Process
 
 def createWindow():
     sg.theme('Default1')  
