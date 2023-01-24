@@ -51,26 +51,21 @@ def plotPriceAction(ticker):
     start_date = end_date - timedelta(days=5000)  # get 5000 days of data
     yf.pdr_override()  # needed as a workaround, a bug in pandas data reader recently came about
     df = pdr.get_data_yahoo(ticker, start_date, end_date)
-    # df = pdr.DataReader(ticker, 'yahoo', start_date, end_date)
     style.use('ggplot')
     pd.options.plotting.backend = 'plotly'
     priceAction = df['Adj Close'].plot()
-    # fig = plt.gcf()
-    # fig.canvas.manager.set_window_title(ticker + " stock price")
     priceAction.show()
 
 
 # returns historic volatility given a ticker and number of days to observe (ending at the present date)
-# still need to double check that this calculates accurately!!
 def getHistoricVol(ticker, time_period):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=time_period)
     yf.pdr_override()  # needed as a workaround as a bug in pandas data reader recently came about
     df = pdr.get_data_yahoo(ticker, start_date, end_date)
-    #df = pdr.DataReader(ticker, 'yahoo', start_date, end_date)
     df['PCT_Change'] = df['Adj Close'].pct_change()
     pct_info = df['PCT_Change'].dropna()
-    return pct_info.std() * np.sqrt(252)
+    return pct_info.std() * np.sqrt(252)    #voatility is annualized by dividing by square root of the number of trading days in a yer
 
 
 # returns a dictionary with date:key pairs for contract expiration dates
@@ -157,7 +152,7 @@ def updateExpDate(ticker, urlExpirationCode):
 
 
 def createOptionSheet(ticker):
-    sg.theme('LightBrown1')  # Add a little color to your windows
+    sg.theme('LightBrown1')
     expirationDates, callList, putList = getOptions(ticker)
     if expirationDates == 0:
         return False, ''
@@ -259,7 +254,6 @@ def createOptionSheet(ticker):
     # - - - - - - - - - - - - - - - - - - - - - - EVENT LOOP - - - - - - - - - - - - - - - - - - - - - - - -
     # -------------------------------------------------------------------------------------------------------
     while True:
-        # event, values = new_window.read()    <- original event check, only supports a single window
         window, event, values = sg.read_all_windows()
 
         row_colors = []                                 # highlight ITM calls
@@ -294,7 +288,7 @@ def createOptionSheet(ticker):
                 pass
             new_window.refresh()
 
-        if event == "-CALLTABLE-":
+        if event == "-CALLTABLE-":      #if you click on a call option
             try:
                 call_window.close()
             except:
@@ -324,7 +318,7 @@ def createOptionSheet(ticker):
             call_window.bind('<Configure>', "Event")
             expDate = values[
                           "expirationDates"] + " 16:00"  # expiration timing can vary, assuming 3pm CST on expiration date
-            # https://www.schwab.com/learn/story/options-expiration-definitions-checklist-more
+                                        # https://www.schwab.com/learn/story/options-expiration-definitions-checklist-more
             expDate = datetime.strptime(expDate, "%B %d, %Y %H:%M")
             S = float(current_price)
             K = float(callRow[9])
@@ -342,7 +336,7 @@ def createOptionSheet(ticker):
             call_window["RHO"].update(round(oF.option_rho(d2, K, T, r, 'c'),4))
             call_window["-BACHELIER-"].update(round(baPrice, 12))
 
-        if event == "-PUTTABLE-":
+        if event == "-PUTTABLE-":   #if you click on a put option
             try:
                 put_window.close()
             except:
