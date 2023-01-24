@@ -1,6 +1,6 @@
 # OptionsSheet
 
-Watch the Program Summary video for a brief demo of the program and its functions (click "view raw" to watch the video, you don't have to actualy download it)!
+Watch the Program Summary video for a brief demo of the program and its functions (click on the file "WATCH ME_Progrm Summary" and then click "view raw" to watch the video, you don't have to actualy download it)!
 
 This application is built with pySimpleGUI. The idea is to provide an environment where it is easy to intuitively explore/fiddle 
 with options contracts, pricing models and plot basic options positions (i.e. long/short positions, strangles, butterflies, etc.)
