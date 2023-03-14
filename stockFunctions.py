@@ -51,21 +51,26 @@ def plotPriceAction(ticker):
     start_date = end_date - timedelta(days=5000)  # get 5000 days of data
     yf.pdr_override()  # needed as a workaround, a bug in pandas data reader recently came about
     df = pdr.get_data_yahoo(ticker, start_date, end_date)
+    # df = pdr.DataReader(ticker, 'yahoo', start_date, end_date)
     style.use('ggplot')
     pd.options.plotting.backend = 'plotly'
     priceAction = df['Adj Close'].plot()
+    # fig = plt.gcf()
+    # fig.canvas.manager.set_window_title(ticker + " stock price")
     priceAction.show()
 
 
 # returns historic volatility given a ticker and number of days to observe (ending at the present date)
+# still need to double check that this calculates accurately!!
 def getHistoricVol(ticker, time_period):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=time_period)
     yf.pdr_override()  # needed as a workaround as a bug in pandas data reader recently came about
     df = pdr.get_data_yahoo(ticker, start_date, end_date)
+    #df = pdr.DataReader(ticker, 'yahoo', start_date, end_date)
     df['PCT_Change'] = df['Adj Close'].pct_change()
     pct_info = df['PCT_Change'].dropna()
-    return pct_info.std() * np.sqrt(252)    #voatility is annualized by dividing by square root of the number of trading days in a yer
+    return pct_info.std() * np.sqrt(252)
 
 
 # returns a dictionary with date:key pairs for contract expiration dates
@@ -151,8 +156,9 @@ def updateExpDate(ticker, urlExpirationCode):
     return callTableEntries, putTableEntries
 
 
+# INCOMPLETE -- idea is to web scrape available option contracts from yahooFinance, maybe put them in a nice GUI
 def createOptionSheet(ticker):
-    sg.theme('LightBrown1')
+    sg.theme('LightBrown1')  # Add a little color to your windows
     expirationDates, callList, putList = getOptions(ticker)
     if expirationDates == 0:
         return False, ''
@@ -205,21 +211,22 @@ def createOptionSheet(ticker):
 
     optionInfo = [[sg.Frame(" Expiration Date: ", expirationDropDown), sg.Button("Update Exp. Date"), sg.Text("Select an option contract for pricing info or to buy/sell", pad=(200,0), font=("Helvetica", 16))],
                   [sg.Frame(" CALLS: ", callTable), sg.Frame(" PUTS: ", putTable)]]
-    historicVolInput = [[sg.Text("Include last"), sg.InputText("365", size=(10,30), key="-HISTORICVOLINPUT-"), sg.Text("days in calculation.")],
-                        [sg.Button("Recalculate",key="-CALCHISVOL-"),sg.Text("Historic Volatility ="),
-                         sg.InputText('      ',key="-HISVOLOUTPUT-", readonly=True, size=(10,10))]]
+    historicVolInput = [
+                            [sg.Text("Annualized Historical Volatility ="),sg.InputText('      ',key="-HISVOLOUTPUT-", readonly=True, size=(10,10))]
+                        ]
 
     riskFreeRateInput = [[sg.Text("Rate as a decimal: "), sg.InputText(".02", size=(8, 10), key="-RISKFREERATE-")]]
     new_layout = [
         [sg.Column(introFrame), sg.VSeperator(), sg.Frame("Open Position", positionTable), sg.Frame('', positionOptions)],
-        [sg.Frame(" Historic Volatility: ",historicVolInput), sg.Frame(" Risk Free Rate: ",riskFreeRateInput), sg.Text("",background_color='#e0f3f6', pad=(250,0)),
+        [sg.Frame(" Volatility: ",historicVolInput), sg.Frame(" Risk Free Rate: ",riskFreeRateInput), sg.Text("",background_color='#e0f3f6', pad=(250,0)),
             sg.Button("Plot Stock Price", pad=5), sg.Button("Plot Daily Returns", pad=5)],
         [sg.Frame("", optionInfo)]
     ]
 
+    # col_widths = list(map(lambda x: len(x) + 1, callTableHeaders)))  #manually set column width
     current_price = getStockPrice(ticker)
     companyName = getCompanyName(ticker)
-    historicVol = round(getHistoricVol(ticker, 365), 6)
+    historicVol = round(getHistoricVol(ticker, 252), 6)
 
     new_window = sg.Window('Option Sheet',
                            new_layout,
@@ -248,29 +255,30 @@ def createOptionSheet(ticker):
     new_window["-CALLTABLE-"].Widget.see(call_scroll-11)    #scroll to have current stock price near middle of table
     new_window["-PUTTABLE-"].Widget.see(put_scroll-11)
 
+    row_colors = []  # highlight ITM calls
+    for row, row_data in enumerate(callTableEntries):
+        temp = row_data[9].replace(',','')
+        if float(temp) < current_price:
+            row_colors.append((row, 'white smoke'))
+        else:
+            row_colors.append((row, sg.theme_background_color()))
+    new_window["-CALLTABLE-"].update(row_colors=row_colors)
 
+    row_colors = []  # highlight ITM puts
+    for row, row_data in enumerate(putTableEntries):
+        temp = row_data[0].replace(',', '')
+        if float(temp) > current_price:
+            row_colors.append((row, 'white smoke'))
+        else:
+            row_colors.append((row, sg.theme_background_color()))
+    new_window["-PUTTABLE-"].update(row_colors=row_colors)
 
     # -------------------------------------------------------------------------------------------------------
     # - - - - - - - - - - - - - - - - - - - - - - EVENT LOOP - - - - - - - - - - - - - - - - - - - - - - - -
     # -------------------------------------------------------------------------------------------------------
     while True:
+        # event, values = new_window.read()    <- original event check, only supports a single window
         window, event, values = sg.read_all_windows()
-
-        row_colors = []                                 # highlight ITM calls
-        for row, row_data in enumerate(callTableEntries):
-            if float(row_data[9]) < current_price:
-                row_colors.append((row, 'white smoke'))
-            else:
-                row_colors.append((row, sg.theme_background_color()))
-        new_window["-CALLTABLE-"].update(row_colors=row_colors)
-
-        row_colors = []                                  # highlight ITM puts
-        for row, row_data in enumerate(putTableEntries):
-            if float(row_data[0]) > current_price:
-                row_colors.append((row, 'white smoke'))
-            else:
-                row_colors.append((row, sg.theme_background_color()))
-        new_window["-PUTTABLE-"].update(row_colors=row_colors)
 
         if event == "Update Exp. Date":
             expDate = values["expirationDates"]
@@ -286,9 +294,44 @@ def createOptionSheet(ticker):
                 call_window.close()
             except:
                 pass
+
             new_window.refresh()
 
-        if event == "-CALLTABLE-":      #if you click on a call option
+            call_scroll = 0  # determine row with strike price closest to current_price for calls
+            for num in callList['Strike']:
+                call_scroll += 1
+                if float(num) > float(current_price):
+                    break
+
+            put_scroll = 0  # determine row with strike price closest to current_price for puts
+            for num in putList['Strike']:
+                put_scroll += 1
+                if float(num) > float(current_price):
+                    break
+
+            new_window["-CALLTABLE-"].Widget.see(
+                call_scroll - 11)  # scroll to have current stock price near middle of table
+            new_window["-PUTTABLE-"].Widget.see(put_scroll - 11)
+
+            new_window.refresh()
+
+            row_colors = []  # highlight ITM calls
+            for row, row_data in enumerate(callTableEntries):
+                if float(row_data[9]) < float(current_price):
+                    row_colors.append((row, 'white smoke'))
+                else:
+                    row_colors.append((row, sg.theme_background_color()))
+            new_window["-CALLTABLE-"].update(row_colors=row_colors)
+
+            row_colors = []  # highlight ITM puts
+            for row, row_data in enumerate(putTableEntries):
+                if float(row_data[0]) > float(current_price):
+                    row_colors.append((row, 'white smoke'))
+                else:
+                    row_colors.append((row, sg.theme_background_color()))
+            new_window["-PUTTABLE-"].update(row_colors=row_colors)
+
+        if event == "-CALLTABLE-":
             try:
                 call_window.close()
             except:
@@ -318,7 +361,7 @@ def createOptionSheet(ticker):
             call_window.bind('<Configure>', "Event")
             expDate = values[
                           "expirationDates"] + " 16:00"  # expiration timing can vary, assuming 3pm CST on expiration date
-                                        # https://www.schwab.com/learn/story/options-expiration-definitions-checklist-more
+            # https://www.schwab.com/learn/story/options-expiration-definitions-checklist-more
             expDate = datetime.strptime(expDate, "%B %d, %Y %H:%M")
             S = float(current_price)
             K = float(callRow[9])
@@ -336,7 +379,7 @@ def createOptionSheet(ticker):
             call_window["RHO"].update(round(oF.option_rho(d2, K, T, r, 'c'),4))
             call_window["-BACHELIER-"].update(round(baPrice, 12))
 
-        if event == "-PUTTABLE-":   #if you click on a put option
+        if event == "-PUTTABLE-":
             try:
                 put_window.close()
             except:
